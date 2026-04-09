@@ -40,56 +40,55 @@ enum { ITF_NUM_HID, ITF_NUM_TOTAL };
 #define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
 
 static const uint8_t hid_report_desc[] = {
-    0x05, 0x0D,        // Usage Page (Digitizers)
+    // 描述符由 USB 官方 DT 工具生成 (digitizer/touchscreen 单点)
+    0x05, 0x0d,        // Usage Page (Digitizers)
     0x09, 0x04,        // Usage (Touch Screen)
-    0xA1, 0x01,        // Collection (Application)
+    0xa1, 0x01,        // Collection (Application)
     0x85, REPORT_ID_TOUCH, //   Report ID (1)
 
-    // 触点 ID
-    0x09, 0x51,        //   Usage (Contact identifier)
+    // --- 定义一个物理集合来描述单个触点 ---
+    0x09, 0x22,        //   Usage (Finger)  // 修改为 Finger 更准确
+    0xa1, 0x02,        //   Collection (Logical) // 使用 Logical Collection
+
+    // 1. 触点状态 (Tip Switch)
+    0x09, 0x42,        //     Usage (Tip Switch)
+    0x15, 0x00,        //     Logical Minimum (0)
+    0x25, 0x01,        //     Logical Maximum (1)
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    // 2. 保留位 (填充至 1 字节，这是修复的核心)
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x07,        //     Report Count (7)
+    0x81, 0x03,        //     Input (Const, Var, Abs)
+
+    // 3. X 坐标 (16位)
+    0x05, 0x01,        //     Usage Page (Generic Desktop)
+    0x09, 0x30,        //     Usage (X)
+    0x15, 0x00,        //     Logical Minimum (0)
+    0x26, 0xff, 0x7f,  //     Logical Maximum (32767)
+    0x75, 0x10,        //     Report Size (16)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    // 4. Y 坐标 (16位)
+    0x09, 0x31,        //     Usage (Y)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    0xc0,              //   End Collection (Logical)
+
+    // 5. 最大触点数量 (Feature Report)
+    0x09, 0x55,        //   Usage (Contact count maximum)
     0x15, 0x00,        //   Logical Minimum (0)
-    0x25, 0x0A,        //   Logical Maximum (10)
+    0x25, 0x01,        //   Logical Maximum (1)  // 单点触摸
     0x75, 0x08,        //   Report Size (8)
     0x95, 0x01,        //   Report Count (1)
-    0x81, 0x02,        //   Input (Data,Var,Abs)
+    0xb1, 0x02,        //   Feature (Data, Var, Abs)
 
-    // Tip Switch + 填充
-    0x09, 0x42,        //   Usage (Tip Switch)
-    0x15, 0x00,        //   Logical Minimum (0)
-    0x25, 0x01,        //   Logical Maximum (1)
-    0x75, 0x01,        //   Report Size (1)
-    0x95, 0x01,        //   Report Count (1)
-    0x81, 0x02,        //   Input (Data,Var,Abs)
-    0x75, 0x07,        //   Report Size (7)
-    0x95, 0x01,        //   Report Count (1)
-    0x81, 0x03,        //   Input (Cnst,Var,Abs)
-
-    // X 坐标
-    0x09, 0x30,        //   Usage (X)
-    0x15, 0x00,        //   Logical Minimum (0)
-    0x26, 0xFF, 0x7F,  //   Logical Maximum (32767)
-    0x35, 0x00,        //   Physical Minimum (0)
-    0x46, 0xFF, 0x7F,  //   Physical Maximum (32767)
-    0x65, 0x00,        //   Unit (None)
-    0x55, 0x00,        //   Unit Exponent (0)
-    0x75, 0x10,        //   Report Size (16)
-    0x95, 0x01,        //   Report Count (1)
-    0x81, 0x02,        //   Input (Data,Var,Abs)
-
-    // Y 坐标
-    0x09, 0x31,        //   Usage (Y)
-    0x15, 0x00,        //   Logical Minimum (0)
-    0x26, 0xFF, 0x7F,  //   Logical Maximum (32767)
-    0x35, 0x00,        //   Physical Minimum (0)
-    0x46, 0xFF, 0x7F,  //   Physical Maximum (32767)
-    0x65, 0x00,        //   Unit (None)
-    0x55, 0x00,        //   Unit Exponent (0)
-    0x75, 0x10,        //   Report Size (16)
-    0x95, 0x01,        //   Report Count (1)
-    0x81, 0x02,        //   Input (Data,Var,Abs)
-
-    0xC0               // End Collection
+    0xc0               // End Collection (Application)
 };
+
 
 static const uint8_t config_desc[] = {
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN,
