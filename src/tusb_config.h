@@ -23,11 +23,11 @@ extern "C" {
 #define CFG_TUD_MIDI                0
 #define CFG_TUD_VENDOR              0
 
-// HID 缓冲大小 (根据报告长度调整)
+// HID 缓冲大小
 #define CFG_TUD_HID_EP_BUFSIZE      64
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _TUSB_CONFIG_H_ */
+#endif
