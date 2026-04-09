@@ -3,10 +3,8 @@
 
 #include "tusb.h"
 
-// 报告 ID
 #define REPORT_ID_TOUCH  0x01
 
-// 触摸屏报告结构 (7 字节)
 typedef struct __attribute__((packed))
 {
     uint8_t  report_id;      // = REPORT_ID_TOUCH
@@ -20,7 +18,6 @@ typedef struct __attribute__((packed))
     uint16_t y;              // Y 坐标 (0~32767)
 } touch_report_t;
 
-// 函数声明
 uint8_t const * tud_descriptor_device_cb(void);
 uint8_t const * tud_descriptor_configuration_cb(uint8_t index);
 uint16_t const * tud_descriptor_string_cb(uint8_t index, uint16_t langid);
