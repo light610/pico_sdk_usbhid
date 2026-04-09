@@ -42,11 +42,11 @@ static const uint8_t hid_report_desc[] = {
     0xA1, 0x01,        // Collection (Application)
     0x85, REPORT_ID_TOUCH, //   Report ID (1)
 
-    // 定义物理集合 (手指)
+    // 定义一个物理集合 (手指)
     0x09, 0x22,        //   Usage (Finger)
     0xA1, 0x02,        //   Collection (Logical)
 
-    // Tip Switch (1 bit)
+    // 1. Tip Switch (1 bit)
     0x09, 0x42,        //     Usage (Tip Switch)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -54,41 +54,12 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 填充位 (7 bits)
+    // 2. 填充位 (7 bits)
     0x75, 0x01,        //     Report Size (1)
     0x95, 0x07,        //     Report Count (7)
     0x81, 0x03,        //     Input (Const, Var, Abs)
 
-    // In Range (1 bit)
-    0x09, 0x32,        //     Usage (In Range)
-    0x15, 0x00,        //     Logical Minimum (0)
-    0x25, 0x01,        //     Logical Maximum (1)
-    0x75, 0x01,        //     Report Size (1)
-    0x95, 0x01,        //     Report Count (1)
-    0x81, 0x02,        //     Input (Data, Var, Abs)
-
-    // Confidence (1 bit)
-    0x09, 0x47,        //     Usage (Confidence)
-    0x15, 0x00,        //     Logical Minimum (0)
-    0x25, 0x01,        //     Logical Maximum (1)
-    0x75, 0x01,        //     Report Size (1)
-    0x95, 0x01,        //     Report Count (1)
-    0x81, 0x02,        //     Input (Data, Var, Abs)
-
-    // 填充位 (6 bits)
-    0x75, 0x01,        //     Report Size (1)
-    0x95, 0x06,        //     Report Count (6)
-    0x81, 0x03,        //     Input (Const, Var, Abs)
-
-    // Contact ID (8 bits)
-    0x09, 0x51,        //     Usage (Contact ID)
-    0x15, 0x00,        //     Logical Minimum (0)
-    0x25, 0x0F,        //     Logical Maximum (15)
-    0x75, 0x08,        //     Report Size (8)
-    0x95, 0x01,        //     Report Count (1)
-    0x81, 0x02,        //     Input (Data, Var, Abs)
-
-    // X 坐标 (16 bits)
+    // 3. X 坐标 (16 bits)
     0x05, 0x01,        //     Usage Page (Generic Desktop)
     0x09, 0x30,        //     Usage (X)
     0x15, 0x00,        //     Logical Minimum (0)
@@ -97,7 +68,7 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // Y 坐标 (16 bits)
+    // 4. Y 坐标 (16 bits)
     0x09, 0x31,        //     Usage (Y)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
