@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
-// 设备描述符（不变）
+// 设备描述符
 #define USB_VID       0xCAFE
 #define USB_PID       0x4005
 #define USB_BCD       0x0200
@@ -35,7 +35,7 @@ enum { ITF_NUM_HID, ITF_NUM_TOTAL };
 #define EPNUM_HID   0x81
 #define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
 
-// ***** 修正后的 HID 报告描述符 *****
+// 修正后的报告描述符（包含 In Range 和 Confidence）
 static const uint8_t hid_report_desc[] = {
     0x05, 0x0D,        // Usage Page (Digitizers)
     0x09, 0x04,        // Usage (Touch Screen)
@@ -46,7 +46,7 @@ static const uint8_t hid_report_desc[] = {
     0x09, 0x22,        //   Usage (Finger)
     0xA1, 0x02,        //   Collection (Logical)
 
-    // 1. Tip Switch (1 bit)
+    // Tip Switch (1 bit)
     0x09, 0x42,        //     Usage (Tip Switch)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -54,12 +54,12 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 2. 填充位 (7 bits)
+    // 填充位 (7 bits)
     0x75, 0x01,        //     Report Size (1)
     0x95, 0x07,        //     Report Count (7)
     0x81, 0x03,        //     Input (Const, Var, Abs)
 
-    // 3. In Range (1 bit)  ← 新增，关键！
+    // In Range (1 bit)
     0x09, 0x32,        //     Usage (In Range)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -67,7 +67,7 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 4. Confidence (1 bit) ← 新增，关键！
+    // Confidence (1 bit)
     0x09, 0x47,        //     Usage (Confidence)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -75,12 +75,12 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 5. 填充位 (6 bits)
+    // 填充位 (6 bits)
     0x75, 0x01,        //     Report Size (1)
     0x95, 0x06,        //     Report Count (6)
     0x81, 0x03,        //     Input (Const, Var, Abs)
 
-    // 6. Contact ID (8 bits)
+    // Contact ID (8 bits)
     0x09, 0x51,        //     Usage (Contact ID)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x0F,        //     Logical Maximum (15)
@@ -88,7 +88,7 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 7. X 坐标 (16 bits)
+    // X 坐标 (16 bits)
     0x05, 0x01,        //     Usage Page (Generic Desktop)
     0x09, 0x30,        //     Usage (X)
     0x15, 0x00,        //     Logical Minimum (0)
@@ -97,7 +97,7 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 8. Y 坐标 (16 bits)
+    // Y 坐标 (16 bits)
     0x09, 0x31,        //     Usage (Y)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
@@ -113,6 +113,7 @@ static const uint8_t hid_report_desc[] = {
 
     0xC0               // End Collection (Application)
 };
+
 static const uint8_t config_desc[] = {
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN,
                           TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
@@ -126,7 +127,7 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index) {
     return config_desc;
 }
 
-// 字符串描述符（不变）
+// 字符串描述符
 static char serial_str[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 static const char *string_desc_arr[] = {
     (const char[]) { 0x09, 0x04 },
