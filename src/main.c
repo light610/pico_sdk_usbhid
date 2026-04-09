@@ -18,19 +18,22 @@ static float angle = 0.0f;
 const float angle_step = 0.08f;  // 移动步长
 
 // 发送报告（带返回值检查）
-static bool send_touch_report(int16_t x, int16_t y, bool touching) {
-    if (!tud_hid_ready()) return false;
+static void send_touch_report(int16_t x, int16_t y, bool touching) {
+    if (!tud_hid_ready()) return;
 
     touch_report_t report = {
         .report_id = REPORT_ID_TOUCH,
-        .contact_id = 0,
         .tip = touching ? 1 : 0,
-        .reserved = 0,
+        .reserved1 = 0,
+        .in_range = touching ? 1 : 0, // 触摸时 in_range 为真
+        .confidence = 1,              // 永远相信数据有效
+        .reserved2 = 0,
+        .contact_id = 0,
         .x = (uint16_t)x,
         .y = (uint16_t)y
     };
 
-    return tud_hid_report(REPORT_ID_TOUCH, &report, sizeof(report));
+    tud_hid_report(REPORT_ID_TOUCH, &report, sizeof(report));
 }
 
 int main() {
