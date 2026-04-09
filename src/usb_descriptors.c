@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
+// 设备描述符（不变）
 #define USB_VID       0xCAFE
 #define USB_PID       0x4005
 #define USB_BCD       0x0200
@@ -29,20 +30,23 @@ uint8_t const * tud_descriptor_device_cb(void) {
     return (uint8_t const *) &device_desc;
 }
 
-//--------------------------------------------------------------------
-// HID 报告描述符 (符合 Windows 触摸屏要求)
-//--------------------------------------------------------------------
+// 配置描述符
+enum { ITF_NUM_HID, ITF_NUM_TOTAL };
+#define EPNUM_HID   0x81
+#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
+
+// ***** 修正后的 HID 报告描述符 *****
 static const uint8_t hid_report_desc[] = {
     0x05, 0x0d,        // Usage Page (Digitizers)
     0x09, 0x04,        // Usage (Touch Screen)
     0xa1, 0x01,        // Collection (Application)
     0x85, REPORT_ID_TOUCH, //   Report ID (1)
 
-    // --- 手指物理集合 ---
+    // 触点定义 (Finger)
     0x09, 0x22,        //   Usage (Finger)
     0xa1, 0x02,        //   Collection (Logical)
 
-    // Tip Switch (按下状态)
+    // Tip Switch (1 bit)
     0x09, 0x42,        //     Usage (Tip Switch)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -50,12 +54,12 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 填充至 8 位
+    // 填充 7 bits
     0x75, 0x01,        //     Report Size (1)
     0x95, 0x07,        //     Report Count (7)
     0x81, 0x03,        //     Input (Const, Var, Abs)
 
-    // X 坐标 (0~32767)
+    // X 坐标
     0x05, 0x01,        //     Usage Page (Generic Desktop)
     0x09, 0x30,        //     Usage (X)
     0x15, 0x00,        //     Logical Minimum (0)
@@ -64,13 +68,13 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // Y 坐标 (0~32767)
+    // Y 坐标
     0x09, 0x31,        //     Usage (Y)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
     0xc0,              //   End Collection (Logical)
 
-    // 最大触点数量 (单点)
+    // 最大触点数量 (Feature)
     0x09, 0x55,        //   Usage (Contact count maximum)
     0x15, 0x00,        //   Logical Minimum (0)
     0x25, 0x01,        //   Logical Maximum (1)
@@ -80,10 +84,6 @@ static const uint8_t hid_report_desc[] = {
 
     0xc0               // End Collection
 };
-
-enum { ITF_NUM_HID, ITF_NUM_TOTAL };
-#define EPNUM_HID   0x81
-#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
 
 static const uint8_t config_desc[] = {
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN,
@@ -98,11 +98,8 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index) {
     return config_desc;
 }
 
-//--------------------------------------------------------------------
-// 字符串描述符
-//--------------------------------------------------------------------
+// 字符串描述符（不变）
 static char serial_str[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
-
 static const char *string_desc_arr[] = {
     (const char[]) { 0x09, 0x04 },
     "Raspberry Pi",
@@ -113,32 +110,24 @@ static const char *string_desc_arr[] = {
 uint16_t const * tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     static uint16_t desc_str[32];
     uint8_t len = 0;
-
     if (index == 0) {
         memcpy(&desc_str[1], string_desc_arr[0], 2);
         len = 1;
     } else {
-        if (index >= sizeof(string_desc_arr) / sizeof(string_desc_arr[0]))
-            return NULL;
-
+        if (index >= sizeof(string_desc_arr)/sizeof(string_desc_arr[0])) return NULL;
         const char *str = string_desc_arr[index];
         if (index == 3) {
             pico_unique_board_id_t id;
             pico_get_unique_board_id(&id);
-            for (int i = 0; i < PICO_UNIQUE_BOARD_ID_SIZE_BYTES; i++) {
-                sprintf(&serial_str[i * 2], "%02X", id.id[i]);
-            }
+            for (int i = 0; i < PICO_UNIQUE_BOARD_ID_SIZE_BYTES; i++)
+                sprintf(&serial_str[i*2], "%02X", id.id[i]);
             str = serial_str;
         }
-
         len = strlen(str);
         if (len > 31) len = 31;
-        for (uint8_t i = 0; i < len; i++) {
-            desc_str[1 + i] = str[i];
-        }
+        for (uint8_t i = 0; i < len; i++) desc_str[1+i] = str[i];
     }
-
-    desc_str[0] = (TUSB_DESC_STRING << 8) | (2 * len + 2);
+    desc_str[0] = (TUSB_DESC_STRING << 8) | (2*len + 2);
     return desc_str;
 }
 
@@ -147,22 +136,14 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf) {
     return hid_report_desc;
 }
 
-//--------------------------------------------------------------------
-// 必须实现的 HID 回调
-//--------------------------------------------------------------------
-uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen) {
-    (void) itf;
-    (void) report_id;
-    (void) report_type;
-    (void) buffer;
-    (void) reqlen;
+// HID 回调（必须实现）
+uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id,
+                               hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen) {
+    (void) itf; (void) report_id; (void) report_type; (void) buffer; (void) reqlen;
     return 0;
 }
 
-void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize) {
-    (void) itf;
-    (void) report_id;
-    (void) report_type;
-    (void) buffer;
-    (void) bufsize;
+void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type,
+                           uint8_t const* buffer, uint16_t bufsize) {
+    (void) itf; (void) report_id; (void) report_type; (void) buffer; (void) bufsize;
 }
