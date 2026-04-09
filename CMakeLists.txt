@@ -12,7 +12,11 @@ add_executable(${PROJECT_NAME}
     src/usb_descriptors.c
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE src)
+# 显式添加 TinyUSB 头文件路径
+target_include_directories(${PROJECT_NAME} PRIVATE
+    src
+    ${PICO_SDK_PATH}/lib/tinyusb/src
+)
 
 # 启用 USB 和 TinyUSB 配置
 target_compile_definitions(${PROJECT_NAME} PRIVATE
