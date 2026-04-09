@@ -4,9 +4,9 @@
 #include <string.h>
 #include <stdio.h>
 
-// 设备描述符
-#define USB_VID       0xCAFE
-#define USB_PID       0x4005
+// 使用更常见的 VID/PID（例如微软测试 VID）
+#define USB_VID       0x045E
+#define USB_PID       0x0791
 #define USB_BCD       0x0200
 
 static const tusb_desc_device_t device_desc = {
@@ -35,18 +35,19 @@ enum { ITF_NUM_HID, ITF_NUM_TOTAL };
 #define EPNUM_HID   0x81
 #define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
 
-// 修正后的报告描述符（包含 In Range 和 Confidence）
+// 符合 Windows 精确触摸屏规范的报告描述符
 static const uint8_t hid_report_desc[] = {
+    // 主 Collection
     0x05, 0x0D,        // Usage Page (Digitizers)
     0x09, 0x04,        // Usage (Touch Screen)
     0xA1, 0x01,        // Collection (Application)
     0x85, REPORT_ID_TOUCH, //   Report ID (1)
 
-    // 定义一个物理集合 (手指)
+    // 手指集合
     0x09, 0x22,        //   Usage (Finger)
     0xA1, 0x02,        //   Collection (Logical)
 
-    // 1. Tip Switch (1 bit)
+    // Tip Switch
     0x09, 0x42,        //     Usage (Tip Switch)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -54,12 +55,36 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 2. 填充位 (7 bits)
+    // In Range
+    0x09, 0x32,        //     Usage (In Range)
+    0x15, 0x00,        //     Logical Minimum (0)
+    0x25, 0x01,        //     Logical Maximum (1)
     0x75, 0x01,        //     Report Size (1)
-    0x95, 0x07,        //     Report Count (7)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    // Confidence
+    0x09, 0x47,        //     Usage (Confidence)
+    0x15, 0x00,        //     Logical Minimum (0)
+    0x25, 0x01,        //     Logical Maximum (1)
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    // 填充 5 bits
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x05,        //     Report Count (5)
     0x81, 0x03,        //     Input (Const, Var, Abs)
 
-    // 3. X 坐标 (16 bits)
+    // Contact ID
+    0x09, 0x51,        //     Usage (Contact ID)
+    0x15, 0x00,        //     Logical Minimum (0)
+    0x25, 0x0F,        //     Logical Maximum (15)
+    0x75, 0x08,        //     Report Size (8)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    // X 坐标
     0x05, 0x01,        //     Usage Page (Generic Desktop)
     0x09, 0x30,        //     Usage (X)
     0x15, 0x00,        //     Logical Minimum (0)
@@ -68,13 +93,22 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 4. Y 坐标 (16 bits)
+    // Y 坐标
     0x09, 0x31,        //     Usage (Y)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    // Scan Time (可选但推荐)
+    0x05, 0x0D,        //     Usage Page (Digitizers)
+    0x09, 0x56,        //     Usage (Scan Time)
+    0x15, 0x00,        //     Logical Minimum (0)
+    0x26, 0xFF, 0x7F,  //     Logical Maximum (32767)
+    0x75, 0x10,        //     Report Size (16)
+    0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
     0xC0,              //   End Collection (Logical)
 
-    // 最大触点数量 (Feature)
+    // 特征报告（最大触点数量）
     0x09, 0x55,        //   Usage (Contact Count Maximum)
     0x15, 0x00,        //   Logical Minimum (0)
     0x25, 0x01,        //   Logical Maximum (1)
@@ -82,7 +116,7 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //   Report Count (1)
     0xB1, 0x02,        //   Feature (Data, Var, Abs)
 
-    0xC0               // End Collection (Application)
+    0xC0               // End Collection
 };
 
 static const uint8_t config_desc[] = {
@@ -102,7 +136,7 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index) {
 static char serial_str[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 static const char *string_desc_arr[] = {
     (const char[]) { 0x09, 0x04 },
-    "Raspberry Pi",
+    "Microsoft",                // 与 VID 045E 匹配
     "Pico Touch Screen",
     serial_str,
 };
@@ -136,10 +170,16 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf) {
     return hid_report_desc;
 }
 
-// HID 回调（必须实现）
+// 处理 Feature Report 请求（必须正确响应）
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id,
                                hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen) {
-    (void) itf; (void) report_id; (void) report_type; (void) buffer; (void) reqlen;
+    (void) itf;
+    if (report_type == HID_REPORT_TYPE_FEATURE && report_id == 0x02) {
+        // 返回 Contact Count Maximum = 1
+        buffer[0] = 0x02; // report_id
+        buffer[1] = 0x01; // max contacts
+        return 2;
+    }
     return 0;
 }
 
