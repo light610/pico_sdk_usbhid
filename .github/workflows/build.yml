@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -26,15 +26,14 @@ jobs:
           echo "PICO_SDK_PATH=${{ github.workspace }}/pico-sdk" >> $GITHUB_ENV
 
       - name: Fetch pico_sdk_import.cmake
-        run: |
-          cp pico-sdk/external/pico_sdk_import.cmake .
-
-      - name: Create build directory
-        run: mkdir build
+        run: cp pico-sdk/external/pico_sdk_import.cmake .
 
       - name: Configure CMake
-        working-directory: build
-        run: cmake .. -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=Release
+        run: |
+          mkdir build
+          cd build
+          # 显式传递 PICO_SDK_PATH，确保 CMake 能找到它
+          cmake .. -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=Release -DPICO_SDK_PATH=${{ github.workspace }}/pico-sdk
 
       - name: Build project
         working-directory: build
@@ -47,5 +46,4 @@ jobs:
           path: |
             build/*.uf2
             build/*.elf
-            build/*.bin
           if-no-files-found: error
