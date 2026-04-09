@@ -1,92 +1,25 @@
 #include <stdio.h>
 #include <math.h>
 #include "pico/stdlib.h"
+#include "pico/binary_info.h"
 #include "hardware/gpio.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
 
-// 逻辑坐标范围 (与报告描述符一致)
-#define LOGICAL_MAX     32767
-#define LOGICAL_MIN     0
+#define SCREEN_WIDTH       32767
+#define SCREEN_HEIGHT      32767
+#define CENTER_X           (SCREEN_WIDTH / 2)
+#define CENTER_Y           (SCREEN_HEIGHT / 2)
+#define RADIUS             10000
 
-// 圆心为屏幕中央
-#define CENTER_X        (LOGICAL_MAX / 2)
-#define CENTER_Y        (LOGICAL_MAX / 2)
+// 状态机：0 = 触摸按下并移动，1 = 触摸释放（短暂停顿）
+static bool touch_active = true;
+static float angle = 0.0f;
+const float angle_step = 0.08f;  // 移动步长
 
-// 半径设置为逻辑范围的 1/3，在 1920x1080 屏幕上约占屏幕宽度的 1/3
-#define RADIUS          (LOGICAL_MAX / 3)
-
-// 发送间隔 (毫秒) —— 20ms 平滑且不丢包
-#define REPORT_INTERVAL_MS  20
-
-// 提前声明
-static bool send_touch_report(int16_t x, int16_t y, bool touching);
-
-int main() {
-    stdio_init_all();
-    tusb_init();
-
-    // 板载 LED 指示工作状态
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-    gpio_put(PICO_DEFAULT_LED_PIN, 0);
-
-    // 等待 USB 枚举完成
-    while (!tud_hid_ready()) {
-        tud_task();
-        sleep_ms(10);
-    }
-
-    // 初始释放一次触摸 (让系统知道当前无触摸)
-    send_touch_report(CENTER_X, CENTER_Y, false);
-    sleep_ms(100);
-
-    float angle = 0.0f;
-    const float angle_step = 0.15f;  // 步长，使圆更平滑
-
-    while (true) {
-        tud_task();
-
-        if (tud_hid_ready()) {
-            gpio_put(PICO_DEFAULT_LED_PIN, 1);
-
-            // 计算圆周上的点
-            int16_t x = CENTER_X + (int16_t)(RADIUS * cosf(angle));
-            int16_t y = CENTER_Y + (int16_t)(RADIUS * sinf(angle));
-
-            // 边界裁剪
-            if (x < LOGICAL_MIN) x = LOGICAL_MIN;
-            if (x > LOGICAL_MAX) x = LOGICAL_MAX;
-            if (y < LOGICAL_MIN) y = LOGICAL_MIN;
-            if (y > LOGICAL_MAX) y = LOGICAL_MAX;
-
-            // 发送触摸按下事件
-            if (send_touch_report(x, y, true)) {
-                angle += angle_step;
-                if (angle >= 2.0f * M_PI) angle -= 2.0f * M_PI;
-            }
-        } else {
-            gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        }
-
-        sleep_ms(REPORT_INTERVAL_MS);
-    }
-
-    return 0;
-}
-
-/**
- * 发送触摸报告，并确保报告被接受
- * 返回 true 表示发送成功，false 表示需要重试
- */
+// 发送报告（带返回值检查）
 static bool send_touch_report(int16_t x, int16_t y, bool touching) {
-    static uint64_t last_success_ms = 0;
-    uint64_t now_ms = to_ms_since_boot(get_absolute_time());
-
-    // 避免发送过快导致丢包
-    if (now_ms - last_success_ms < (REPORT_INTERVAL_MS / 2)) {
-        return false;
-    }
+    if (!tud_hid_ready()) return false;
 
     touch_report_t report = {
         .report_id = REPORT_ID_TOUCH,
@@ -97,9 +30,65 @@ static bool send_touch_report(int16_t x, int16_t y, bool touching) {
         .y = (uint16_t)y
     };
 
-    if (tud_hid_report(REPORT_ID_TOUCH, &report, sizeof(report))) {
-        last_success_ms = now_ms;
-        return true;
+    return tud_hid_report(REPORT_ID_TOUCH, &report, sizeof(report));
+}
+
+int main() {
+    stdio_init_all();
+    tusb_init();
+
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+    gpio_put(PICO_DEFAULT_LED_PIN, 0);
+
+    absolute_time_t last_report_time = get_absolute_time();
+    const int64_t report_interval_us = 10000; // 10ms
+
+    while (true) {
+        tud_task(); // 处理 USB 事件
+
+        // 只有 USB 准备好且距上次报告间隔足够时才发送新报告
+        if (tud_hid_ready() && absolute_time_diff_us(last_report_time, get_absolute_time()) >= report_interval_us) {
+            gpio_put(PICO_DEFAULT_LED_PIN, 1);
+
+            int16_t x, y;
+            bool send_ok = false;
+
+            if (touch_active) {
+                // 计算圆周坐标
+                x = CENTER_X + (int16_t)(RADIUS * cosf(angle));
+                y = CENTER_Y + (int16_t)(RADIUS * sinf(angle));
+
+                // 边界裁剪
+                if (x < 0) x = 0;
+                if (x > SCREEN_WIDTH) x = SCREEN_WIDTH;
+                if (y < 0) y = 0;
+                if (y > SCREEN_HEIGHT) y = SCREEN_HEIGHT;
+
+                send_ok = send_touch_report(x, y, true);
+
+                angle += angle_step;
+                if (angle >= 2.0f * M_PI) {
+                    angle -= 2.0f * M_PI;
+                    // 每画完一圈，模拟一次抬起（让光标短暂消失再出现，更符合真实触摸行为）
+                    touch_active = false;
+                }
+            } else {
+                // 发送释放报告（tip = 0）
+                send_ok = send_touch_report(CENTER_X, CENTER_Y, false);
+                touch_active = true; // 立即准备下一轮按下
+            }
+
+            if (send_ok) {
+                last_report_time = get_absolute_time();
+            }
+        } else {
+            gpio_put(PICO_DEFAULT_LED_PIN, 0);
+        }
+
+        // 极短延时，让出 CPU
+        sleep_us(100);
     }
-    return false;
+
+    return 0;
 }
