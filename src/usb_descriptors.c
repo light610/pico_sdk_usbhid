@@ -37,16 +37,16 @@ enum { ITF_NUM_HID, ITF_NUM_TOTAL };
 
 // ***** 修正后的 HID 报告描述符 *****
 static const uint8_t hid_report_desc[] = {
-    0x05, 0x0d,        // Usage Page (Digitizers)
+    0x05, 0x0D,        // Usage Page (Digitizers)
     0x09, 0x04,        // Usage (Touch Screen)
-    0xa1, 0x01,        // Collection (Application)
+    0xA1, 0x01,        // Collection (Application)
     0x85, REPORT_ID_TOUCH, //   Report ID (1)
 
-    // 触点定义 (Finger)
+    // 定义物理集合 (手指)
     0x09, 0x22,        //   Usage (Finger)
-    0xa1, 0x02,        //   Collection (Logical)
+    0xA1, 0x02,        //   Collection (Logical)
 
-    // Tip Switch (1 bit)
+    // 1. Tip Switch (1 bit)
     0x09, 0x42,        //     Usage (Tip Switch)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -54,37 +54,65 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 填充 7 bits
+    // 2. 填充位 (7 bits)
     0x75, 0x01,        //     Report Size (1)
     0x95, 0x07,        //     Report Count (7)
     0x81, 0x03,        //     Input (Const, Var, Abs)
 
-    // X 坐标
+    // 3. In Range (1 bit)  ← 新增，关键！
+    0x09, 0x32,        //     Usage (In Range)
+    0x15, 0x00,        //     Logical Minimum (0)
+    0x25, 0x01,        //     Logical Maximum (1)
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    // 4. Confidence (1 bit) ← 新增，关键！
+    0x09, 0x47,        //     Usage (Confidence)
+    0x15, 0x00,        //     Logical Minimum (0)
+    0x25, 0x01,        //     Logical Maximum (1)
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    // 5. 填充位 (6 bits)
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x06,        //     Report Count (6)
+    0x81, 0x03,        //     Input (Const, Var, Abs)
+
+    // 6. Contact ID (8 bits)
+    0x09, 0x51,        //     Usage (Contact ID)
+    0x15, 0x00,        //     Logical Minimum (0)
+    0x25, 0x0F,        //     Logical Maximum (15)
+    0x75, 0x08,        //     Report Size (8)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data, Var, Abs)
+
+    // 7. X 坐标 (16 bits)
     0x05, 0x01,        //     Usage Page (Generic Desktop)
     0x09, 0x30,        //     Usage (X)
     0x15, 0x00,        //     Logical Minimum (0)
-    0x26, 0xff, 0x7f,  //     Logical Maximum (32767)
+    0x26, 0xFF, 0x7F,  //     Logical Maximum (32767)
     0x75, 0x10,        //     Report Size (16)
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // Y 坐标
+    // 8. Y 坐标 (16 bits)
     0x09, 0x31,        //     Usage (Y)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    0xc0,              //   End Collection (Logical)
+    0xC0,              //   End Collection (Logical)
 
     // 最大触点数量 (Feature)
-    0x09, 0x55,        //   Usage (Contact count maximum)
+    0x09, 0x55,        //   Usage (Contact Count Maximum)
     0x15, 0x00,        //   Logical Minimum (0)
     0x25, 0x01,        //   Logical Maximum (1)
     0x75, 0x08,        //   Report Size (8)
     0x95, 0x01,        //   Report Count (1)
-    0xb1, 0x02,        //   Feature (Data, Var, Abs)
+    0xB1, 0x02,        //   Feature (Data, Var, Abs)
 
-    0xc0               // End Collection
+    0xC0               // End Collection (Application)
 };
-
 static const uint8_t config_desc[] = {
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN,
                           TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
