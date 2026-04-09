@@ -4,9 +4,6 @@
 #include <string.h>
 #include <stdio.h>
 
-//--------------------------------------------------------------------
-// 设备描述符
-//--------------------------------------------------------------------
 #define USB_VID       0xCAFE
 #define USB_PID       0x4005
 #define USB_BCD       0x0200
@@ -33,24 +30,19 @@ uint8_t const * tud_descriptor_device_cb(void) {
 }
 
 //--------------------------------------------------------------------
-// 配置描述符 (含 HID 接口)
+// HID 报告描述符 (符合 Windows 触摸屏要求)
 //--------------------------------------------------------------------
-enum { ITF_NUM_HID, ITF_NUM_TOTAL };
-#define EPNUM_HID   0x81
-#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
-
 static const uint8_t hid_report_desc[] = {
-    // 描述符由 USB 官方 DT 工具生成 (digitizer/touchscreen 单点)
     0x05, 0x0d,        // Usage Page (Digitizers)
     0x09, 0x04,        // Usage (Touch Screen)
     0xa1, 0x01,        // Collection (Application)
     0x85, REPORT_ID_TOUCH, //   Report ID (1)
 
-    // --- 定义一个物理集合来描述单个触点 ---
-    0x09, 0x22,        //   Usage (Finger)  // 修改为 Finger 更准确
-    0xa1, 0x02,        //   Collection (Logical) // 使用 Logical Collection
+    // --- 手指物理集合 ---
+    0x09, 0x22,        //   Usage (Finger)
+    0xa1, 0x02,        //   Collection (Logical)
 
-    // 1. 触点状态 (Tip Switch)
+    // Tip Switch (按下状态)
     0x09, 0x42,        //     Usage (Tip Switch)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -58,12 +50,12 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 2. 保留位 (填充至 1 字节，这是修复的核心)
+    // 填充至 8 位
     0x75, 0x01,        //     Report Size (1)
     0x95, 0x07,        //     Report Count (7)
     0x81, 0x03,        //     Input (Const, Var, Abs)
 
-    // 3. X 坐标 (16位)
+    // X 坐标 (0~32767)
     0x05, 0x01,        //     Usage Page (Generic Desktop)
     0x09, 0x30,        //     Usage (X)
     0x15, 0x00,        //     Logical Minimum (0)
@@ -72,23 +64,26 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 4. Y 坐标 (16位)
+    // Y 坐标 (0~32767)
     0x09, 0x31,        //     Usage (Y)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
     0xc0,              //   End Collection (Logical)
 
-    // 5. 最大触点数量 (Feature Report)
+    // 最大触点数量 (单点)
     0x09, 0x55,        //   Usage (Contact count maximum)
     0x15, 0x00,        //   Logical Minimum (0)
-    0x25, 0x01,        //   Logical Maximum (1)  // 单点触摸
+    0x25, 0x01,        //   Logical Maximum (1)
     0x75, 0x08,        //   Report Size (8)
     0x95, 0x01,        //   Report Count (1)
     0xb1, 0x02,        //   Feature (Data, Var, Abs)
 
-    0xc0               // End Collection (Application)
+    0xc0               // End Collection
 };
 
+enum { ITF_NUM_HID, ITF_NUM_TOTAL };
+#define EPNUM_HID   0x81
+#define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
 
 static const uint8_t config_desc[] = {
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN,
@@ -109,10 +104,10 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index) {
 static char serial_str[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 
 static const char *string_desc_arr[] = {
-    (const char[]) { 0x09, 0x04 },  // 0: 语言 ID
-    "Raspberry Pi",                 // 1: 制造商
-    "Pico Touch Screen",            // 2: 产品
-    serial_str,                     // 3: 序列号 (动态生成)
+    (const char[]) { 0x09, 0x04 },
+    "Raspberry Pi",
+    "Pico Touch Screen",
+    serial_str,
 };
 
 uint16_t const * tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
@@ -147,19 +142,15 @@ uint16_t const * tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     return desc_str;
 }
 
-//--------------------------------------------------------------------
-// HID 报告描述符回调
-//--------------------------------------------------------------------
 uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf) {
     (void) itf;
     return hid_report_desc;
 }
 
 //--------------------------------------------------------------------
-// 必须实现的 HID 回调（即使不使用）
+// 必须实现的 HID 回调
 //--------------------------------------------------------------------
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen) {
-    // 本应用只使用输入报告，不支持获取报告，返回 0
     (void) itf;
     (void) report_id;
     (void) report_type;
@@ -169,7 +160,6 @@ uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t
 }
 
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize) {
-    // 本应用不处理主机发送的设置报告，忽略即可
     (void) itf;
     (void) report_id;
     (void) report_type;
