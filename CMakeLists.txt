@@ -12,21 +12,19 @@ add_executable(${PROJECT_NAME}
     src/usb_descriptors.c
 )
 
-# 显式添加 TinyUSB 头文件路径
-target_include_directories(${PROJECT_NAME} PRIVATE
-    src
-    ${PICO_SDK_PATH}/lib/tinyusb/src
-)
+# 添加 src 目录作为私有包含目录（用于 tusb_config.h）
+target_include_directories(${PROJECT_NAME} PRIVATE src)
 
-# 启用 USB 和 TinyUSB 配置
+# 定义 TinyUSB 配置文件宏
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     CFG_TUSB_CONFIG_FILE=\"tusb_config.h\"
 )
 
+# 链接 SDK 提供的 TinyUSB 设备库（自动带入头文件路径）
 target_link_libraries(${PROJECT_NAME}
     pico_stdlib
     pico_unique_id
-    tinyusb_device
+    pico_tinyusb_device   # 替换之前的 tinyusb_device
 )
 
 pico_add_extra_outputs(${PROJECT_NAME})
