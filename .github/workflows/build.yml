@@ -2,17 +2,20 @@ name: Build Pico Touch HID
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential
@@ -20,24 +23,29 @@ jobs:
       - name: Clone Pico SDK
         run: |
           git clone --depth 1 --branch master https://github.com/raspberrypi/pico-sdk.git
-          echo "PICO_SDK_PATH=$PWD/pico-sdk" >> $GITHUB_ENV
+          echo "PICO_SDK_PATH=${{ github.workspace }}/pico-sdk" >> $GITHUB_ENV
 
-      - name: Prepare SDK import
-        run: cp pico-sdk/external/pico_sdk_import.cmake .
+      - name: Fetch pico_sdk_import.cmake
+        run: |
+          cp pico-sdk/external/pico_sdk_import.cmake .
+
+      - name: Create build directory
+        run: mkdir build
 
       - name: Configure CMake
-        run: |
-          mkdir build
-          cd build
-          cmake .. -DPICO_BOARD=pico
+        working-directory: build
+        run: cmake .. -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build
-        run: |
-          cd build
-          make -j$(nproc)
+      - name: Build project
+        working-directory: build
+        run: make -j$(nproc)
 
-      - name: Upload firmware
+      - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pico-touch-hid
-          path: build/*.uf2
+          name: pico-touch-hid-firmware
+          path: |
+            build/*.uf2
+            build/*.elf
+            build/*.bin
+          if-no-files-found: error
