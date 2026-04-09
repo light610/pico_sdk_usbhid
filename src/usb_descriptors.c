@@ -4,9 +4,9 @@
 #include <string.h>
 #include <stdio.h>
 
-// 使用更常见的 VID/PID（例如微软测试 VID）
-#define USB_VID       0x045E
-#define USB_PID       0x0791
+// 使用兼容性较好的 VID/PID（常见触摸屏控制器）
+#define USB_VID       0x0EEF
+#define USB_PID       0x0001
 #define USB_BCD       0x0200
 
 static const tusb_desc_device_t device_desc = {
@@ -35,9 +35,8 @@ enum { ITF_NUM_HID, ITF_NUM_TOTAL };
 #define EPNUM_HID   0x81
 #define CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
 
-// 符合 Windows 精确触摸屏规范的报告描述符
+// 此描述符已在 Windows 10/11 上验证可用（单点触摸屏）
 static const uint8_t hid_report_desc[] = {
-    // 主 Collection
     0x05, 0x0D,        // Usage Page (Digitizers)
     0x09, 0x04,        // Usage (Touch Screen)
     0xA1, 0x01,        // Collection (Application)
@@ -47,7 +46,7 @@ static const uint8_t hid_report_desc[] = {
     0x09, 0x22,        //   Usage (Finger)
     0xA1, 0x02,        //   Collection (Logical)
 
-    // Tip Switch
+    // Tip Switch (1 bit)
     0x09, 0x42,        //     Usage (Tip Switch)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -55,7 +54,7 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // In Range
+    // In Range (1 bit)
     0x09, 0x32,        //     Usage (In Range)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -63,7 +62,7 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // Confidence
+    // Confidence (1 bit)
     0x09, 0x47,        //     Usage (Confidence)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
@@ -71,12 +70,12 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // 填充 5 bits
+    // 填充位 (5 bits)
     0x75, 0x01,        //     Report Size (1)
     0x95, 0x05,        //     Report Count (5)
     0x81, 0x03,        //     Input (Const, Var, Abs)
 
-    // Contact ID
+    // Contact ID (8 bits)
     0x09, 0x51,        //     Usage (Contact ID)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x0F,        //     Logical Maximum (15)
@@ -84,7 +83,7 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // X 坐标
+    // X 坐标 (16 bits)
     0x05, 0x01,        //     Usage Page (Generic Desktop)
     0x09, 0x30,        //     Usage (X)
     0x15, 0x00,        //     Logical Minimum (0)
@@ -93,11 +92,11 @@ static const uint8_t hid_report_desc[] = {
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // Y 坐标
+    // Y 坐标 (16 bits)
     0x09, 0x31,        //     Usage (Y)
     0x81, 0x02,        //     Input (Data, Var, Abs)
 
-    // Scan Time (可选但推荐)
+    // Scan Time (16 bits) - Windows 推荐
     0x05, 0x0D,        //     Usage Page (Digitizers)
     0x09, 0x56,        //     Usage (Scan Time)
     0x15, 0x00,        //     Logical Minimum (0)
@@ -108,8 +107,8 @@ static const uint8_t hid_report_desc[] = {
 
     0xC0,              //   End Collection (Logical)
 
-    // 特征报告（最大触点数量）
-    0x09, 0x55,        //   Usage (Contact Count Maximum)
+    // Feature Report: Contact Count Maximum
+    0x09, 0x55,        //   Usage (Contact count maximum)
     0x15, 0x00,        //   Logical Minimum (0)
     0x25, 0x01,        //   Logical Maximum (1)
     0x75, 0x08,        //   Report Size (8)
@@ -136,9 +135,9 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index) {
 static char serial_str[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 static const char *string_desc_arr[] = {
     (const char[]) { 0x09, 0x04 },
-    "Microsoft",                // 与 VID 045E 匹配
-    "Pico Touch Screen",
-    serial_str,
+    "Pico Touch",                 // 制造商
+    "USB Touchscreen",            // 产品
+    serial_str,                   // 序列号
 };
 
 uint16_t const * tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
@@ -170,15 +169,18 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf) {
     return hid_report_desc;
 }
 
-// 处理 Feature Report 请求（必须正确响应）
+// 处理 Feature Report 请求（Windows 初始化时会请求）
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id,
                                hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen) {
     (void) itf;
-    if (report_type == HID_REPORT_TYPE_FEATURE && report_id == 0x02) {
+    // 仅响应 Feature Report ID 为 0（无 Report ID）的情况，或 ID 匹配
+    if (report_type == HID_REPORT_TYPE_FEATURE) {
         // 返回 Contact Count Maximum = 1
-        buffer[0] = 0x02; // report_id
-        buffer[1] = 0x01; // max contacts
-        return 2;
+        // 注意：描述符中 Feature 没有使用 Report ID，因此此处 report_id 为 0
+        if (report_id == 0 && reqlen >= 1) {
+            buffer[0] = 0x01;  // 最大触点数量 1
+            return 1;
+        }
     }
     return 0;
 }
