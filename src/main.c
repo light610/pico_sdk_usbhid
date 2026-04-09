@@ -15,7 +15,7 @@
 static bool touch_active = true;
 static float angle = 0.0f;
 const float angle_step = 0.08f;
-static uint8_t scan_time_counter = 0;
+static uint16_t scan_time_counter = 0;
 
 static bool send_touch_report(int16_t x, int16_t y, bool touching) {
     if (!tud_hid_ready()) return false;
@@ -29,7 +29,7 @@ static bool send_touch_report(int16_t x, int16_t y, bool touching) {
         .contact_id = 0,
         .x = (uint16_t)x,
         .y = (uint16_t)y,
-        .scan_time = scan_time_counter++  // 递增扫描时间
+        .scan_time = scan_time_counter++
     };
 
     return tud_hid_report(REPORT_ID_TOUCH, &report, sizeof(report));
@@ -69,7 +69,7 @@ int main() {
                 angle += angle_step;
                 if (angle >= 2.0f * M_PI) {
                     angle -= 2.0f * M_PI;
-                    touch_active = false;
+                    touch_active = false; // 完成一圈后抬起
                 }
             } else {
                 send_ok = send_touch_report(CENTER_X, CENTER_Y, false);
