@@ -155,3 +155,25 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf) {
     (void) itf;
     return hid_report_desc;
 }
+
+//--------------------------------------------------------------------
+// 必须实现的 HID 回调（即使不使用）
+//--------------------------------------------------------------------
+uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen) {
+    // 本应用只使用输入报告，不支持获取报告，返回 0
+    (void) itf;
+    (void) report_id;
+    (void) report_type;
+    (void) buffer;
+    (void) reqlen;
+    return 0;
+}
+
+void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize) {
+    // 本应用不处理主机发送的设置报告，忽略即可
+    (void) itf;
+    (void) report_id;
+    (void) report_type;
+    (void) buffer;
+    (void) bufsize;
+}
