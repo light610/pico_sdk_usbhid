@@ -12,21 +12,24 @@
 #define RADIUS             10000
 #define UPDATE_INTERVAL_MS 10
 
-// 触摸状态机
 static bool touch_active = true;
 static float angle = 0.0f;
 const float angle_step = 0.08f;
+static uint8_t scan_time_counter = 0;
 
-// 发送触摸报告（已修正字段名）
 static bool send_touch_report(int16_t x, int16_t y, bool touching) {
     if (!tud_hid_ready()) return false;
 
     touch_report_t report = {
         .report_id = REPORT_ID_TOUCH,
         .tip = touching ? 1 : 0,
+        .in_range = touching ? 1 : 0,
+        .confidence = 1,
         .reserved1 = 0,
+        .contact_id = 0,
         .x = (uint16_t)x,
-        .y = (uint16_t)y
+        .y = (uint16_t)y,
+        .scan_time = scan_time_counter++  // 递增扫描时间
     };
 
     return tud_hid_report(REPORT_ID_TOUCH, &report, sizeof(report));
@@ -56,7 +59,6 @@ int main() {
                 x = CENTER_X + (int16_t)(RADIUS * cosf(angle));
                 y = CENTER_Y + (int16_t)(RADIUS * sinf(angle));
 
-                // 边界限制
                 if (x < 0) x = 0;
                 if (x > SCREEN_WIDTH) x = SCREEN_WIDTH;
                 if (y < 0) y = 0;
@@ -67,12 +69,11 @@ int main() {
                 angle += angle_step;
                 if (angle >= 2.0f * M_PI) {
                     angle -= 2.0f * M_PI;
-                    touch_active = false; // 画完一圈后释放
+                    touch_active = false;
                 }
             } else {
-                // 发送释放报告（tip = 0, in_range = 0）
                 send_ok = send_touch_report(CENTER_X, CENTER_Y, false);
-                touch_active = true; // 准备下一圈
+                touch_active = true;
             }
 
             if (send_ok) {
