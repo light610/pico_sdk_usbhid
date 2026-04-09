@@ -7,24 +7,36 @@ set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
+# 查找 tusb.h 的位置（应该位于 PICO_SDK_PATH/lib/tinyusb/src）
+find_path(TINYUSB_INCLUDE_DIR
+    NAMES tusb.h
+    PATHS ${PICO_SDK_PATH}/lib/tinyusb/src
+    NO_DEFAULT_PATH
+)
+
+if(NOT TINYUSB_INCLUDE_DIR)
+    message(FATAL_ERROR "tusb.h not found in ${PICO_SDK_PATH}/lib/tinyusb/src")
+endif()
+message(STATUS "Found TinyUSB include dir: ${TINYUSB_INCLUDE_DIR}")
+
 add_executable(${PROJECT_NAME}
     src/main.c
     src/usb_descriptors.c
 )
 
-# 添加 src 目录作为私有包含目录（用于 tusb_config.h）
-target_include_directories(${PROJECT_NAME} PRIVATE src)
+target_include_directories(${PROJECT_NAME} PRIVATE
+    src
+    ${TINYUSB_INCLUDE_DIR}
+)
 
-# 定义 TinyUSB 配置文件宏
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     CFG_TUSB_CONFIG_FILE=\"tusb_config.h\"
 )
 
-# 链接 SDK 提供的 TinyUSB 设备库（自动带入头文件路径）
 target_link_libraries(${PROJECT_NAME}
     pico_stdlib
     pico_unique_id
-    pico_tinyusb_device   # 替换之前的 tinyusb_device
+    tinyusb_device
 )
 
 pico_add_extra_outputs(${PROJECT_NAME})
