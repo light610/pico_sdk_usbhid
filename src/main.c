@@ -25,10 +25,6 @@ static bool send_touch_report(int16_t x, int16_t y, bool touching) {
         .report_id = REPORT_ID_TOUCH,
         .tip = touching ? 1 : 0,
         .reserved1 = 0,
-        .in_range = touching ? 1 : 0,
-        .confidence = 1,      // 数据始终有效
-        .reserved2 = 0,
-        .contact_id = 0,
         .x = (uint16_t)x,
         .y = (uint16_t)y
     };
