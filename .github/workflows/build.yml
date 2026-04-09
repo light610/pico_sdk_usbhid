@@ -1,0 +1,43 @@
+name: Build Pico Touch HID
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential
+
+      - name: Clone Pico SDK
+        run: |
+          git clone --depth 1 --branch master https://github.com/raspberrypi/pico-sdk.git
+          echo "PICO_SDK_PATH=$PWD/pico-sdk" >> $GITHUB_ENV
+
+      - name: Prepare SDK import
+        run: cp pico-sdk/external/pico_sdk_import.cmake .
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DPICO_BOARD=pico
+
+      - name: Build
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: pico-touch-hid
+          path: build/*.uf2
