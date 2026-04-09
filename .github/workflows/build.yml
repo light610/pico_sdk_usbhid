@@ -20,9 +20,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential
 
-      - name: Clone Pico SDK
+      - name: Clone Pico SDK (with submodules)
         run: |
-          git clone --depth 1 --branch master https://github.com/raspberrypi/pico-sdk.git
+          git clone --depth 1 --branch master --recurse-submodules https://github.com/raspberrypi/pico-sdk.git
           echo "PICO_SDK_PATH=${{ github.workspace }}/pico-sdk" >> $GITHUB_ENV
 
       - name: Fetch pico_sdk_import.cmake
@@ -32,7 +32,6 @@ jobs:
         run: |
           mkdir build
           cd build
-          # 显式传递 PICO_SDK_PATH，确保 CMake 能找到它
           cmake .. -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=Release -DPICO_SDK_PATH=${{ github.workspace }}/pico-sdk
 
       - name: Build project
