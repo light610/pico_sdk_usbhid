@@ -9,13 +9,9 @@ typedef struct __attribute__((packed))
 {
     uint8_t  report_id;      // = REPORT_ID_TOUCH
     uint8_t  tip : 1;        // 触摸标志
-    uint8_t  reserved1 : 7;  // 保留（填充至 1 字节）
-    uint8_t  in_range : 1;   // 触摸有效范围
-    uint8_t  confidence : 1; // 数据置信度
-    uint8_t  reserved2 : 6;  // 保留（填充至 1 字节）
-    uint8_t  contact_id;     // 触点标识
-    uint16_t x;              // X 坐标 (0~32767)
-    uint16_t y;              // Y 坐标 (0~32767)
+    uint8_t  reserved1 : 7;  // 保留
+    uint16_t x;              // X 坐标
+    uint16_t y;              // Y 坐标
 } touch_report_t;
 
 uint8_t const * tud_descriptor_device_cb(void);
